@@ -1,0 +1,7 @@
+{
+    "micsable.configuration.title": "Make it Compatible: Sable",
+
+    "micsable.config.section.sableiris": "Sable x Iris",
+
+    "micsable.config.sableiris.buildEditedSubLevelsAsyncUnderShaders": "Async Sub-Level Build (Shaders)"
+}

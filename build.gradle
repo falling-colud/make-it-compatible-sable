@@ -1,0 +1,154 @@
+plugins {
+    id 'java'
+    // NeoForge's official build plugin. Use the latest 2.0.x; bump if Gradle reports a newer one.
+    id 'net.neoforged.moddev' version '2.0.+'
+}
+
+group = 'dev.makeitcompatible'
+version = project.mod_version
+base.archivesName = 'make-it-compatible-sable'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// Make it Compatible: Sable -- LittleTiles x Sable, Sable x Iris, Immersive Portals x Sable. Ships as ONE
+// jar whose early loader (src/sableloader) seeds the Sable<->LittleTiles fml.toml override before mods are
+// sorted, with the real mod jar nested inside at META-INF/inner/ and injected back into discovery by
+// NestedModLocator (see sableDistJar below).
+sourceSets {
+    sable {
+        java.srcDirs = ['src/sable/java']
+        resources.srcDirs = ['src/sable/resources']
+    }
+    sableloader {
+        java.srcDirs = ['src/sableloader/java']
+        resources.srcDirs = ['src/sableloader/resources']
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.ryanhcode.dev/releases'      ; name = 'Sable'        }
+    maven { url = 'https://maven.su5ed.dev/releases'          ; name = 'CreativeCore' }
+    maven { url = 'https://api.modrinth.com/maven'            ; name = 'Modrinth'     }
+    maven { url = 'https://cursemaven.com'; content { includeGroup 'curse.maven' } }
+    maven { url = 'https://maven.caffeinemc.net/releases'     ; name = 'CaffeineMC'   }
+    maven { url = 'https://maven.nonamecrackers2.dev/releases'; name = 'nonamecrackers2' }
+    maven { url = 'https://maven.bawnorton.com/releases'      ; name = 'Bawnorton'    } // MixinSquared
+    // Shared, provided-at-runtime mod jars live one level up (see ../libs/README.md).
+    flatDir { dirs 'libs', '../libs' }
+}
+
+neoForge {
+    version = project.neoforge_version
+
+    parchment {
+        minecraftVersion = project.parchment_minecraft
+        mappingsVersion = project.parchment_version
+    }
+
+    runs {
+        client {
+            client()
+            // NeoForge scans run/mods for the bridged mods (Sable, LittleTiles, CreativeCore, Iris, ...).
+            gameDirectory = file('run')
+        }
+    }
+
+    mods {
+        micsable {
+            sourceSet sourceSets.sable
+        }
+    }
+
+    addModdingDependenciesTo sourceSets.sable
+    // The Sable loader compiles against ModLauncher + the NeoForge SPI, which ride along on the same classpath.
+    addModdingDependenciesTo sourceSets.sableloader
+}
+
+// The default (empty) main source set builds nothing we ship; the real artifacts have their own jar tasks.
+tasks.named('jar') { enabled = false }
+
+configurations {
+    // Both source sets compile against the same provided-at-runtime jars (../libs + the deps below).
+    sableCompileOnly.extendsFrom compileOnly
+    sableloaderCompileOnly.extendsFrom compileOnly
+}
+
+dependencies {
+    // Every mod this patch bridges (LittleTiles, CreativeCore, Sable + its bundled API libs, Iris),
+    // provided at runtime by the modpack (compileOnly here so they are NOT bundled). Source: local jars in ../libs.
+    compileOnly fileTree(dir: 'libs', include: ['*.jar'])
+    compileOnly fileTree(dir: '../libs', include: ['*.jar'])
+
+    // Immersive Portals (NeoForge 1.21.1) for the Immersive Portals x Sable patch. The Modrinth "-all" jar is
+    // flat (its q_misc_util library rides top-level), so this one coordinate is the whole compile classpath for
+    // it. Provided at runtime by the modpack; the patch self-gates on the 'imm_ptl' mod id.
+    compileOnly 'maven.modrinth:zf4Szzx2:6.0.7'
+
+    // MixinSquared, used by the Immersive Portals x Sable patch to defuse two upstream mixins and mix into their
+    // handler methods. compileOnly + AP for the sable source set; the NeoForge runtime half is bundled into the
+    // mod jar via JarJar (see sableModJar), so the distributed jar stays self-contained.
+    sableCompileOnly 'com.github.bawnorton.mixinsquared:mixinsquared-common:0.3.4'
+    sableAnnotationProcessor 'com.github.bawnorton.mixinsquared:mixinsquared-common:0.3.4'
+    jarJar('com.github.bawnorton.mixinsquared:mixinsquared-neoforge') {
+        version {
+            strictly '[0.3.3,)'
+            prefer '0.3.4'
+        }
+    }
+    // In dev the nested-jar path (and with it the JarJar'd MixinSquared) is not used - the mod loads from class
+    // directories - so provide MixinSquared on the dev runtime classpath too (dist jars are unaffected). Only
+    // mixinsquared-common is needed here; adding mixinsquared-neoforge would split-package against it and fail
+    // module resolution.
+    additionalRuntimeClasspath 'com.github.bawnorton.mixinsquared:mixinsquared-common:0.3.4'
+}
+
+// Interpolate gradle.properties into neoforge.mods.toml (so ${mod_version} stays in one place).
+// (sableloader ships only META-INF/services, so it has no mods.toml to expand.)
+tasks.named('processSableResources', ProcessResources) {
+    final def props = [mod_version: project.mod_version]
+    inputs.properties(props)
+    filesMatching('META-INF/neoforge.mods.toml') { expand(props) }
+}
+
+// ------------------------------------------------------------------------------------------------
+// Make it Compatible: Sable  -- a single distributed jar: the early loader service (seeds the
+// Sable<->LittleTiles fml.toml override before mod sorting) + the real mod jar nested at META-INF/inner/,
+// injected into mod discovery by NestedModLocator. FML lifts service-declaring jars onto its early service
+// layer and skips them during mod scanning, which is why the mod half must ride along nested rather than
+// top-level.
+// ------------------------------------------------------------------------------------------------
+tasks.register('sableModJar', Jar) {
+    from sourceSets.sable.output
+    // Bundle the project's JarJar'd libraries (MixinSquared's NeoForge half, for the Immersive Portals x Sable
+    // patch) into the mod jar. FML resolves META-INF/jarjar/ of located mod files, including our nested one.
+    from tasks.named('jarJar')
+    archiveBaseName = 'make-it-compatible-sable'
+    archiveClassifier = 'mod'
+    manifest {
+        attributes([
+            'Specification-Title'   : 'make-it-compatible-sable',
+            'Specification-Version' : project.version,
+            'Implementation-Title'  : 'Make it Compatible: Sable',
+            'Implementation-Version': project.version
+        ])
+    }
+}
+tasks.register('sableDistJar', Jar) {
+    from sourceSets.sableloader.output
+    into('META-INF/inner') {
+        from tasks.named('sableModJar')
+        rename { 'make-it-compatible-sable-mod.jar' }
+    }
+    archiveBaseName = 'make-it-compatible-sable'
+    manifest {
+        attributes([
+            'Automatic-Module-Name' : 'dev.micsable.loader',
+            'Specification-Title'   : 'make-it-compatible-sable',
+            'Specification-Version' : project.version,
+            'Implementation-Title'  : 'Make it Compatible: Sable',
+            'Implementation-Version': project.version
+        ])
+    }
+}
+tasks.named('assemble') { dependsOn 'sableDistJar' }

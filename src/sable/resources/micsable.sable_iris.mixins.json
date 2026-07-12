@@ -1,0 +1,14 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "dev.micsable.sable_iris.mixin",
+    "plugin": "dev.micsable.sable_iris.SableIrisMixinPlugin",
+    "compatibilityLevel": "JAVA_21",
+    "client": [
+        "SableDynamicShadingMixin",
+        "SubLevelShadeStateMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

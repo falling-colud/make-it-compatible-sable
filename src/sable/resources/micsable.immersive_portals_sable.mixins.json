@@ -1,0 +1,28 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "dev.micsable.immersive_portals_sable.mixin",
+    "plugin": "dev.micsable.immersive_portals_sable.ImmersivePortalsSableMixinPlugin",
+    "compatibilityLevel": "JAVA_21",
+    "mixins": [
+        "McHelperMixin",
+        "ChunkLoaderMixin",
+        "ImmPtlChunkTicketsMixin",
+        "EntitySyncMixin",
+        "EntityPortalCollisionMixin",
+        "EntitySetPosLogMixin",
+        "TrackedEntityMixin",
+        "ServerPlayerTeleportPacketMixin",
+        "PlayerStandUpPortalMixin",
+        "SubLevelTrackingSystemMixin"
+    ],
+    "client": [
+        "ImmPtlViewAreaMixin",
+        "ViewAreaLevelAccessor",
+        "LevelRendererAccessor",
+        "VanillaSubLevelBlockEntityRendererMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

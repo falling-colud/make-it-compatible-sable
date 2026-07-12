@@ -1,0 +1,104 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/leonraineri/make-it-compatible/issues"
+
+[[mods]]
+modId = "micsable"
+version = "${mod_version}"
+displayName = "Make it Compatible: Sable"
+logoFile = "icon.png"
+logoBlur = false
+authors = "leon.raineri"
+credits = "CreativeMD & N247S (LittleTiles), RyanHCode (Sable)"
+description = '''Make it Compatible: Sable bundles small, self-contained compatibility patches for Sable. Each patch
+activates only when the mods it bridges are both installed, so it is safe to keep loaded with any subset of them.
+
+Patches in this build:
+- LittleTiles x Sable: makes LittleTiles tiles render and behave correctly on Sable moving sub-levels (vehicles) -
+  chunk + Sodium rendering, lighting, block interaction, collision, physics, and placement previews. Sable
+  hard-declares LittleTiles "incompatible" at the loader level; this mod's bundled early loader lifts that
+  automatically, with no fml.toml hand-edit and no separate bootstrap jar.
+- Sable x Iris: keeps Sable sub-levels (vehicles) from rendering black under shaderpacks.
+- Immersive Portals x Sable: makes Immersive Portals (NeoForge) and Sable coexist - resolves their hard collision
+  mixin conflict (portal collision now composes with vehicle collision), keeps entities on vehicles synced and
+  tracked, keeps vehicles loaded/visible through portals (cross-dimension included), keeps vehicle edits rebuilding
+  their meshes, fixes sub-level block entities in portal views, and stops Immersive Portals' chunk tickets from
+  fighting Sable's plot chunks (the "stuck on saving" exit hang). Sub-levels still cannot travel through a portal.
+  Based on ImmersivePortalSableBridge by rebbyIf & Bunting_chj, adapted for Sable 2.0.
+
+The Voxy compatibility patches - including the Sable render-distance / Sable x Voxy compat - live in the sibling mod
+"Make it Compatible: Voxy". Both build from the same repo.'''
+
+# Each patch declares its own mixin config. The config is gated by a plugin so its mixins apply only when the
+# patch's target mods are present (see dev.micsable.core.RequiredModsMixinPlugin).
+[[mixins]]
+config = "micsable.littletiles_sable.mixins.json"
+
+[[mixins]]
+config = "micsable.sable_iris.mixins.json"
+
+[[mixins]]
+config = "micsable.immersive_portals_sable.mixins.json"
+
+# --- Dependencies ---------------------------------------------------------------------------------
+# Only NeoForge + Minecraft are required. Every bridged mod is OPTIONAL: the mod loads with any subset of them, and
+# each patch self-gates on its own targets. The ordering = "AFTER" entries guarantee that, when a target mod IS
+# present, it loads before us so its classes exist when our mixins/helpers reference them.
+
+[[dependencies.micsable]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.micsable]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"
+
+# --- LittleTiles x Sable patch targets (both optional; the patch is dormant unless both are present) ---
+
+[[dependencies.micsable]]
+modId = "littletiles"
+type = "optional"
+versionRange = "[1.6.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.micsable]]
+modId = "sable"
+type = "optional"
+versionRange = "[2.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+# Sodium is optional: the LittleTiles x Sable patch works with or without it (Sable renders sub-levels through
+# vanilla sections either way). Listed only to guarantee load ordering when it is present.
+[[dependencies.micsable]]
+modId = "sodium"
+type = "optional"
+versionRange = "[0.6,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+# Iris is optional and only relevant to the Sable x Iris sub-level shading fix.
+[[dependencies.micsable]]
+modId = "iris"
+type = "optional"
+versionRange = "[1.8,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+# Immersive Portals (NeoForge build) is optional and only relevant to the Immersive Portals x Sable patch.
+# The patch's mixins wrap two of Immersive Portals' synthetic lambdas, so it is pinned to the versions it was
+# built against; bump after re-verifying those targets.
+[[dependencies.micsable]]
+modId = "imm_ptl"
+type = "optional"
+versionRange = "[6.0.7,)"
+ordering = "AFTER"
+side = "BOTH"
