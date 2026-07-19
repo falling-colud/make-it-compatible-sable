@@ -34,8 +34,8 @@ repositories {
     maven { url = 'https://maven.caffeinemc.net/releases'     ; name = 'CaffeineMC'   }
     maven { url = 'https://maven.nonamecrackers2.dev/releases'; name = 'nonamecrackers2' }
     maven { url = 'https://maven.bawnorton.com/releases'      ; name = 'Bawnorton'    } // MixinSquared
-    // Shared, provided-at-runtime mod jars live one level up (see ../libs/README.md).
-    flatDir { dirs 'libs', '../libs' }
+    // Shared, provided-at-runtime mod jars live two levels up (see ../../libs/README.md).
+    flatDir { dirs 'libs', '../../libs' }
 }
 
 neoForge {
@@ -69,16 +69,16 @@ neoForge {
 tasks.named('jar') { enabled = false }
 
 configurations {
-    // Both source sets compile against the same provided-at-runtime jars (../libs + the deps below).
+    // Both source sets compile against the same provided-at-runtime jars (../../libs + the deps below).
     sableCompileOnly.extendsFrom compileOnly
     sableloaderCompileOnly.extendsFrom compileOnly
 }
 
 dependencies {
     // Every mod this patch bridges (LittleTiles, CreativeCore, Sable + its bundled API libs, Iris),
-    // provided at runtime by the modpack (compileOnly here so they are NOT bundled). Source: local jars in ../libs.
+    // provided at runtime by the modpack (compileOnly here so they are NOT bundled). Source: local jars in ../../libs.
     compileOnly fileTree(dir: 'libs', include: ['*.jar'])
-    compileOnly fileTree(dir: '../libs', include: ['*.jar'])
+    compileOnly fileTree(dir: '../../libs', include: ['*.jar'])
 
     // Immersive Portals (NeoForge 1.21.1) for the Immersive Portals x Sable patch. The Modrinth "-all" jar is
     // flat (its q_misc_util library rides top-level), so this one coordinate is the whole compile classpath for
